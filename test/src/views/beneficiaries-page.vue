@@ -1,85 +1,78 @@
 <template>
   <div>
     <h2 class="content-block">Beneficiaries</h2>
+    <div class="content-block">
+      <div class="dx-card responsive-paddings">
+        <DxDataGrid id="dataGrid" :data-source="beneficiaries" key-expr="Name" :columns="columns"
+          :repaint-changes-only="true" @rowInserted="onRowInserted" @rowUpdated="onRowUpdated" @rowRemoved="onRowRemoved">
+          <DxEditing mode="form" :refresh-mode="'repaint'" :allow-adding="true" :allow-updating="true"
+            :allow-deleting="true" />
+        </DxDataGrid>
 
-    <div class="content-block dx-card responsive-paddings">
-      
-    </div>
-
-    <div class="content-block dx-card responsive-paddings">
-      <dx-form
-        id="form"
-        label-location="top"
-        :form-data="formData"
-        :colCountByScreen="colCountByScreen"
-      />
+      </div>
     </div>
   </div>
 </template>
-
 <script>
-import DxForm from "devextreme-vue/form";
-
+import {
+  DxDataGrid,
+  DxEditing
+} from 'devextreme-vue/data-grid';
+import axios from 'axios';
 export default {
-  props: {
-    picture: String
-  },
-  setup() {
-    const picture = "images/employees/06.png";
-    
-    const imageSrc = `https://js.devexpress.com/Demos/WidgetsGallery/JSDemos/${picture}`;
-    const formData = {
-      ID: 7,
-      FirstName: "Sandra",
-      LastName: "Johnson",
-      Prefix: "Mrs.",
-      Position: "Controller",
-      Picture: picture,
-      BirthDate: new Date("1974/11/5"),
-      HireDate: new Date("2005/05/11"),
-      Notes:
-        "Sandra is a CPA and has been our controller since 2008. " +
-        "She loves to interact with staff so if you`ve not met her, be certain to say hi." +
-        "\r\n\r\n" +
-        "Sandra has 2 daughters both of whom are accomplished gymnasts.",
-      Address: "4600 N Virginia Rd."
-    };
-    const colCountByScreen = {
-      xs: 1,
-      sm: 2,
-      md: 3,
-      lg: 4
-    }
-
-    return {
-      imageSrc,
-      formData,
-      colCountByScreen
-    };
-  },
   components: {
-    DxForm
-  }
-};
-</script>
+    DxDataGrid,
+    DxEditing
+  },
+  data() {
+    return {
+      columns: [
+        { dataField: 'Name' },
+        { dataField: 'Relationship' },
+        { dataField: 'Gender' },
+        { dataField: 'BirthDate', dataType: 'date' },
+      ],
+      beneficiaries: []
+    }
+  },
+  methods: {
+    getBeneficiaries() {
+      axios.get(this.$djangoUrl + 'beneficiaries').then(res => {
+        this.beneficiaries = res.data
+      })
+    },
+    save(e) {
+      if (e.changes[0].type == 'insert') {
+        var employee = e.changes[0].data
+        axios.post(this.$djangoUrl + 'beneficiaries', employee).then(res => {
+          console.log(res.data)
+        })
 
-<style lang="scss">
-.form-avatar {
-  float: left;
-  height: 120px;
-  width: 120px;
-  margin-right: 20px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-color: #fff;
-  overflow: hidden;
-
-  img {
-    height: 120px;
-    display: block;
-    margin: 0 auto;
+      }
+    },
+    onRowInserted(event) {
+      const newRowData = event.data;
+      axios.post(this.$djangoUrl + 'beneficiaries', newRowData).then((response) => {
+        this.rows.push(response.data);
+      });
+    },
+    onRowUpdated(event) {
+      const updatedRowData = event.data;
+      axios.put(this.$djangoUrl + 'beneficiaries/' + `${updatedRowData.id}`, updatedRowData).then(() => {
+        const index = this.rows.findIndex((row) => row.id === updatedRowData.id);
+        this.$set(this.rows, index, updatedRowData);
+      });
+    },
+    onRowRemoved(event) {
+      const deletedRowData = event.data;
+      axios.delete(this.$djangoUrl + 'beneficiaries/' + `${deletedRowData.id}`).then(() => {
+        const index = this.rows.findIndex((row) => row.id === deletedRowData.id);
+        this.rows.splice(index, 1);
+      });
+    },
+  },
+  mounted() {
+    this.getBeneficiaries()
   }
 }
-</style>
+</script>
